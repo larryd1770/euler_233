@@ -1,0 +1,209 @@
+'''
+The problem is about lattice points on a circle. Given a circle with 
+circumference lying on the coordinates (0, 0), (N, 0), (0, N) and
+(N, N), where N is a natural number, how many lattice points are on the circum-
+ference. More specifically, what is the sum of all N ≤ 10¹¹ for which 
+the number of lattice points on the circumference of the circle is 
+precisely 420?
+
+We are really asking this question: what is the sum of all n ≤ 5^21 such that
+in (xᵢ - N/2)² + (yᵢ - N/2)² = n, we have exactly distinct 420 (x, y) integer pairs
+where sign and order both matter. (n = N²/2 because the radius of the
+circle is being considered, not the x,y coordinates of the diagonal to
+the origin point)
+
+Substituting u for xᵢ - N/2 and v for yᵢ - N/2, the problem is reduced
+to u² + v² = n.
+
+This is the sum of squares function r[k](n), with k = 2.
+
+Solving the sum of squares function for k = 2 involves the 
+following steps:
+    1. Perform a prime factorization with multiplicities of n.
+    2. Arrange the primes this way:
+        2ᵃ⁰ * p₁²ᵃ¹ * p₂²ᵃ² *...* pᵣ²ᵃʳ * q₁ᵇ¹ * q₂ᵇ² *...* q[s]ᵇˢ
+        where pᵢ are primes such that p ≡ 3 mod 4
+        and qⱼ are primes such that q ≡ 1 mod 4.
+    3. If there is a left over power of p because one of the exponents is
+    odd, the number has no lattice points (in our case there will always be at 
+    least the 4 given lattice points).
+    4. Otherwise, make B ≡ (b₁ + 1)(b₂ + 1)...(b[s] + 1).
+    5. The number of lattice points = 4B
+    
+In our case, n = N² / 2 because the radius is N√2 / 2
+
+Working backwards, we divide 420 by 4. This gives us B = 105. And now we find all
+divisors of B. 1 * 105, 3 * 35, 5 * 21, 7 * 15 for pairs. 3 * 5 * 7 is the only
+triplet.
+Subtracting one from each yields (0, 104), (2, 34), (4, 20), (6, 14) and
+(2, 4, 6)
+
+Now we are searching for N, not N² / 2. So we need to first divide n by 2. This
+amounts to subtracting 1 from a₀. Since we are dealing always with integers,
+the smallest permissible power of 2 is 0. This means a₀ >= 1. We also need to 
+the square root. This amounts to halving each of b.
+
+So our necessary primes are 2 ^ a, with a >= 1; and one to three q 
+primes with the following powers (52), (1, 17), (2, 10), (3, 7), or
+(1, 2, 3).
+
+Now, the first q primes are 5, 13, and 17.
+Since we are limited to N <= 10^11, we can discard all except (10, 2) in that order
+and (1, 2, 3) in any order
+
+So the task is to find all N meeting the minimum criteria of 2 * one of the q 
+exponent patters (considering all primes with all powers above.
+
+Then we need to find the multiples of these by powers of 2 and powers of single
+to arbitrarily many p primes.
+
+The second part can be reduced to this--consider multipliers in succession. 
+Use any multiplier that does not contain any q primes in its prime factorization.
+The powers of the ps need not be even, because the number with 
+the lattice points will have twice as many, always being even.
+
+Then we gather all basic answers and their multiples and sum them.
+
+This is the math problem.
+
+The computer computational problem is a little less complex.'''
+
+# Imports
+from itertools import permutations
+from sys import exit
+from sympy import nextprime, factorint, ceiling
+
+# A method to generate C1 primes
+def prime_please(basis):
+    temp = nextprime(basis)
+    while True:
+        if temp % 4 == 1:
+            return temp
+        else:
+            temp = nextprime(temp)
+
+# A method to check the prime factors of a number for C1 primes and return a 
+# boolean value if one is found.
+def multiplier_please(basis):
+    temp = basis + 1
+    while True:
+        checker = True
+        q = factorint(temp)
+        for k in q:
+            if k % 4 == 1:
+                checker = False
+            else:
+                pass
+        if checker:
+            return temp
+        else:
+            temp += 1
+# Variables
+perm_list = []
+limit = 10 ** 11
+q1 = 5
+next_q1 = True
+q2 = 13
+next_q2 = True
+q2_space = True
+q3 = 17
+next_q3 = True
+N = 0
+base_list = []
+multiplier = 1
+multiplier_list = []
+answer = 0
+dot = 0
+# Permutation list for (1, 2, 3)
+for perm in permutations([1, 2, 3]):
+    perm_list.append(perm)
+# q1 loop. 
+print('Generating base list')
+while next_q1:
+    q2 = prime_please(q1)
+    next_q2 = True
+    # nested q2 loop. Check with powers (10, 2
+    while next_q2:
+        q2_space = True
+        print(q1, q2, 'with various q3')
+        N = 2 * (q1 ** 10) * (q2 ** 2)
+        if N > limit:
+            q2_space = False
+        else:
+            base_list.append(N)
+        q3 = prime_please(q2)
+        next_q3 = True
+        # nested q3 loop. Check with all powers in permutations of (1, 2, 3), multiplying
+        # 2 for each. If (3, 2, 1) is over the limit, advance q2. If the current run
+        # q2 was too big on all values, stop all three iterations and move on.
+        while next_q3:
+            if 2 * (q1 ** 3) * (q2 ** 2) * q3 > limit:
+                next_q3 = False
+                if q2_space:
+                    break
+                else:
+                    next_q2 = False
+            for perms in perm_list:
+                a = perms[0]
+                b = perms[1]
+                c = perms[2]
+                N = 2 * (q1 ** a) * (q2 ** b) * (q3 ** c)
+                if N > limit:
+                    pass
+                else:
+                    base_list.append(N)
+            if not next_q3:
+                break
+            else:
+                q3 = prime_please(q3)
+                dot += 1
+                if dot % 1000 == 0:
+                    print('.', end ='')
+        if not next_q2:
+            break
+        else:
+            q2 = prime_please(q2)
+    q1 = prime_please(q1)
+    temp_q2 = prime_please(q1)
+    temp_q3 = prime_please(temp_q2)
+    if 2 * (q1 ** 3) * (temp_q2 ** 2) * temp_q3 > limit:
+        break
+    else:
+        pass
+# Loop: Generate a list of multipliers with m <= (10^11 / (2 * 5³ * 13² * 17)). 
+# Check multipliers to make sure they contain no q factors. 
+print('\nDone.\nCreating a list of multipliers.')
+m = 2
+mlimit = ceiling(limit / (2 * (5 ** 3) * (13 ** 2) * 17))
+while m <= mlimit:
+    multiplier_list.append(m)
+    m = multiplier_please(m)
+    dot += 1
+    if dot % 50000 == 0:
+        print('.', end = '')
+    else:
+        pass
+baselist = sorted(base_list)
+answer = sum(baselist)
+print('\nDone. \nMultiplying.')
+# Loop: List: multiply each base N by all of the multipliers, moving to the next N
+# when the product is too big.
+for mul in multiplier_list:
+    for base in baselist:
+        dot += 1
+        if dot % 100000 == 0:
+            print('.', end = '')
+        else:
+            pass
+        N = mul * base
+        if N > limit:
+            break
+        else:
+            answer += N
+
+print('\nDone')
+print('The answer appears to be', answer)
+
+
+
+
